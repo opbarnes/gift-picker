@@ -1,0 +1,22 @@
+{
+  "name": "gift-picker",
+  "version": "1.0.0",
+  "description": "Gift exchange picker - generates who will gift to whom for a gift exchange",
+  "main": "gift-picker.js",
+  "scripts": {
+    "eslint": "eslint gift-picker.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/opbarnes/gift-picker.git"
+  },
+  "author": "Pat Barnes",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/opbarnes/gift-picker/issues"
+  },
+  "homepage": "https://github.com/opbarnes/gift-picker#readme",
+  "dependencies": {
+    "commander": "^2.15.1"
+  }
+}
