@@ -12,6 +12,9 @@
   },
   "author": "Pat Barnes",
   "license": "MIT",
+  "bin": {
+    "gift-picker": "./gift-picker.js"
+  },
   "bugs": {
     "url": "https://github.com/opbarnes/gift-picker/issues"
   },
