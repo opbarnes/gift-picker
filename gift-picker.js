@@ -9,7 +9,7 @@ program
     .option('-l, --logging', 'turn on logging')
     .option('-d, --demo', 'run demo mode (supplied file is ignored)')
     .option('-f, --file <file>', 'load participants file')
-    .option('-g, --generate <file>', 'generate sample participants file', 'in.json')
+    .option('-g, --generate <file>', 'generate sample participants file')
 
 program.parse(process.argv);
 
@@ -30,6 +30,10 @@ class Person {
 
     hasNameInBlackList(name) {
         return this.blackList.has(name);
+    }
+
+    getBlackListArray() {
+        return [...this.blackList.values()];
     }
 }
 
@@ -141,7 +145,7 @@ class Persons {
                 if (!Array.isArray(personBlackList)) {
                     cbOut('Invalid JSON loaded from file.');
                     cbErr(`Unexpected JSON: elements of top level must be arrays of length 2;
-the second index of these arrays must be an array`);
+the second index of these arrays must be an array.`);
                     break;
                 }
                 retval = this.addPerson(personName, personBlackList) || retval;
@@ -158,23 +162,68 @@ the second index of these arrays must be an array`);
                 ? errStdOutCb
                 : () => { /* Noop arrow func */ };
 
-        let fileContents = '';
+        let arr = [],
+            fileContents = '',
+            success = true;
+
         try {
             fileContents = fs.readFileSync(filename, 'utf8');
         } catch (err) {
             cbOut(`Unable to open file: ${filename}`);
             cbErr(`${err.name}: ${err.message}`);
+            success = false;
         }
 
-        cbOut(fileContents);
-        let arr = [];
-        try {
-            arr = JSON.parse(fileContents);
-        } catch (err) {
-            cbOut('Unable to parse JSON.');
-            cbErr(`${err.name}: ${err.message}`);
+        if (success) {
+            try {
+                arr = JSON.parse(fileContents);
+            } catch (err) {
+                cbOut('Unable to parse JSON.');
+                cbErr(`${err.name}: ${err.message}`);
+                success = false;
+            }
         }
-        this.loadArray(arr);
+
+        if (success) {
+            success = this.loadArray(arr);
+        }
+        return success;
+    }
+
+    saveDataToFile(filename, errStdOutCb, errStdErrCb) {
+        const cbErr = (typeof errStdErrCb === 'function')
+                ? errStdErrCb
+                : () => { /* Noop arrow func */ },
+            cbOut = (typeof errStdOutCb === 'function')
+                ? errStdOutCb
+                : () => { /* Noop arrow func */ },
+            fileContentsArr = [];
+
+        let fileContents = '',
+            success = true;
+
+        for (const [key, value] of this.people) {
+            fileContentsArr.push([key, value.getBlackListArray()]);
+        }
+
+        try {
+            fileContents = JSON.stringify(fileContentsArr, null, 2);
+        } catch (err) {
+            cbOut('Unable to generate JSON for save file.');
+            cbErr(`${err.name}: ${err.message}`);
+            success = false;
+        }
+
+        if (success) {
+            try {
+                fs.writeFileSync(filename, fileContents);
+            } catch (err) {
+                cbOut(`Unable to write file: ${filename}`);
+                cbErr(`${err.name}: ${err.message}`);
+                success = false;
+            }
+        }
+        return success;
     }
 }
 
@@ -198,11 +247,27 @@ class GiftExchange {
                 logCallback
             );
         } else if ((typeof this.dataFile !== 'undefined') && (this.dataFile !== '')) {
-            this.people.loadDataFile(
+            this.people.loadDataFromFile(
                 this.dataFile,
                 console.log,
                 logCallback
             );
+        }
+
+        if ((typeof this.genFile !== 'undefined') && (this.genFile !== '')) {
+            const tmpPeople = new Persons();
+            tmpPeople.loadArray(
+                GiftExchange.generateSampleData(),
+                console.log,
+                logCallback
+            );
+            if (tmpPeople.saveDataToFile(
+                this.genFile,
+                console.log,
+                logCallback
+            )) {
+                console.log(`Sample participants file generated: ${this.genFile}`);
+            }
         }
 
         const gifts = this.determineGifts(this.people.getAllPeopleNames(true));
@@ -231,13 +296,15 @@ class GiftExchange {
 
     static generateSampleData() {
         return [
-            ['Pat', ['Hugo', 'Violet']],
-            ['Hugo', ['Garfield']],
-            ['Violet', ['Harold', 'Pat']],
-            ['Garfield', ['Stanley']],
-            ['Stanley', ['Violet']],
-            ['Harold', ['Teddy']],
-            ['Teddy', ['Pat']]
+            ['Matt', ['Allison', 'David']],
+            ['David', ['Samantha', 'Carol']],
+            ['Louis', ['Rhianna', 'Samantha']],
+            ['Jerry', ['Carol', 'Allison']],
+            ['Allison', ['Matt', 'Rhianna']],
+            ['Samantha', ['David', 'Lynn']],
+            ['Rhianna', ['Louis', 'Matt']],
+            ['Carol', ['Jerry', 'Louis']],
+            ['Lynn', ['Jerry']]
         ];
     }
 
@@ -281,6 +348,7 @@ const app = new GiftExchange(
 );
 
 if ( ((typeof program.file === 'undefined') || (program.file === '')) &&
+     ((typeof program.generate === 'undefined') || (program.generate === '')) &&
      (!program.demo) ) {
     console.log('Use \'gift-picker --help\' to list available options.');
 }
